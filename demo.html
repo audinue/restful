@@ -1,0 +1,172 @@
+<div id="container"></div>
+
+<script>
+  let collection = { state: 'initial', documents: null }
+  let products = []
+  let showForm = false
+  let editIndex = -1
+  let autofocus = false
+
+  function ProductsEditor () {
+    if (collection.state === 'initial') {
+      collection.state = 'loading'
+      fetch('index.php/products')
+        .then(function (response) {
+          return response.json()
+        })
+        .then(function (json) {
+          collection.state = 'writing'
+          collection.documents = JSON.parse(JSON.stringify(json))
+          products = json
+          ProductsEditor()
+        })
+    } else if (collection.state === 'writing') {
+      for (const product of products) {
+        if (!('id' in product)) {
+          collection.state = 'loading'
+          fetch('index.php/products', {
+            method: 'POST',
+            body: JSON.stringify(product)
+          }).then(function (response) {
+            return response.json()
+          }).then(function (id) {
+            product.id = id
+            collection.state = 'writing'
+            collection.documents.push(JSON.parse(JSON.stringify(product)))
+            ProductsEditor()
+          })
+          break
+        }
+      }
+      if (collection.state !== 'loading') {
+        const a = Object.fromEntries(products.map(p => [p.id, p]))
+        for (const product of collection.documents) {
+          if (!(product.id in a)) {
+            collection.state = 'loading'
+            fetch('index.php/products/' + product.id, {
+              method: 'DELETE'
+            }).then(function () {
+              collection.state = 'writing'
+              collection.documents = collection.documents.filter(function (p) {
+                return p !== product
+              })
+            })
+            break
+          }
+        }
+      }
+      if (collection.state !== 'loading') {
+        const a = Object.fromEntries(products.map(p => [p.id, p]))
+        for (const product of collection.documents) {
+          const b = JSON.stringify(a[product.id])
+          if (JSON.stringify(product) !== b) {
+            collection.state = 'loading'
+            fetch('index.php/products/' + product.id, {
+              method: 'PUT',
+              body: b
+            }).then(function () {
+              collection.state = 'writing'
+              collection.documents = collection.documents.map(function (p) {
+                return p === product
+                  ? JSON.parse(b)
+                  : p
+              })
+            })
+            break
+          }
+        }
+      }
+    }
+
+    if (showForm && !autofocus) {
+      autofocus = true
+      setTimeout(function () {
+        container.querySelector('[name=name]').focus()
+      })
+    } else {
+      autofocus = false
+    }
+
+    let editing = editIndex === -1
+      ? { name: '', price: 0 }
+      : products[editIndex]
+
+    container.innerHTML = `
+      <h1>Products</h1>
+
+      <p>
+        <button onclick="dispatch('add')">Add</button>
+      </p>
+
+      <table border="1">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${products.map(function ({ name, price }, index) {
+            return `
+              <tr>
+                <td>${name}</td>
+                <td>$${price}</td>
+                <td>
+                  <button onclick="dispatch('edit', ${index})">Edit</button>
+                  <button onclick="dispatch('remove', ${index})">Remove</button>
+                </td>
+              </tr>
+            `
+          }).join('')}
+        </tbody>
+      </table>
+
+      ${showForm ? `
+        <form onsubmit="dispatch('save', this); return false">
+          <p>
+            Name: <input name="name" value="${editing.name}" type="text">
+          </p>
+          <p>
+            Price: <input name="price" value="${editing.price}" type="number">
+          </p>
+          <p>
+            <button>Save</button>
+            <button type="button" onclick="dispatch('cancel')">Cancel</button>
+          </p>
+        </form>
+      ` : ''}
+    `
+
+    window.dispatch = function (action, payload) {
+      switch (action) {
+        case 'add':
+          showForm = true
+          editIndex = -1
+          break
+        case 'edit':
+          showForm = true
+          editIndex = payload
+          break
+        case 'remove':
+          products.splice(payload, 1)
+          break
+        case 'save':
+          let product = Object.fromEntries(new FormData(payload))
+          if (editIndex === -1) {
+            products.push(product)
+          } else {
+            Object.assign(products[editIndex], product)
+          }
+          showForm = false
+          break
+        case 'cancel':
+          showForm = false
+          break
+      }
+      ProductsEditor()
+    }
+  }
+
+  ProductsEditor()
+</script>

@@ -1,0 +1,97 @@
+@startuml
+
+hide empty members
+
+Collection <.. Database
+DocumentNotFound <.. Collection : <<implicit>>
+InvalidDocument <.. Collection : <<implicit>>
+Database <.. Action
+Response <. Action
+InvalidRequest <. ActionParser : <<implicit>>
+Action <... ActionParser
+Response <.. Server
+ActionParser <.. Server : <<implicit>>
+
+class DocumentNotFound <<final>> <<exception>> {
+  + DocumentNotFound()
+}
+
+class InvalidDocument <<final>> <<exception>> {
+  + InvalidDocument()
+}
+
+class InvalidRequest <<final>> <<exception>> {
+  + InvalidRequest()
+}
+
+class Collection <<final>> {
+  + Collection(String, int, Object[])
+  + getDocuments(): Object[]
+  + getDocumentById(String): Object
+  + createDocument(Object): int
+  + updateDocument(int, Object): void
+  + deleteDocument(int): void
+  + save(): void
+}
+
+class Database <<final>> {
+  + Database()
+  + getCollection(String): Collection
+}
+
+class Response <<abstract>> {
+  + Response(int, String)
+  + <<final>> send(): void
+}
+
+class Ok <<final>> extends Response {
+  + Ok(Object)
+}
+
+class NoContent <<final>> extends Response {
+  + NoContent()
+}
+
+class BadRequest <<final>> extends Response {
+  + BadRequest()
+}
+
+class NotFound <<final>> extends Response {
+  + NotFound()
+}
+
+class Action <<abstract>> {
+  + <<abstract>> run(Database): Response
+}
+
+class GetCollection <<final>> extends Action {
+  + GetCollection(String)
+}
+
+class GetDocument <<final>> extends Action {
+  + GetDocument(String, int)
+}
+
+class CreateDocument <<final>> extends Action {
+  + CreateDocument(String, Object)
+}
+
+class UpdateDocument <<final>> extends Action {
+  + UpdateDocument(String, int, Object)
+}
+
+class DeleteDocument <<final>> extends Action {
+  + DeleteDocument(String, int)
+}
+
+class ActionParser <<final>> {
+  + ActionParser()
+  + parse(): Action
+}
+
+class Server <<finall>> {
+  + Server()
+  + respond(): Response
+}
+
+@enduml
